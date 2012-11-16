@@ -1,0 +1,55 @@
+import drake
+import drake.cxx
+import drake.cxx.boost
+
+def configure(cxx_toolkit = None, cxx_config = None, boost = None, prefix = '/usr'):
+
+  cxx_toolkit = cxx_toolkit or drake.cxx.Toolkit()
+  cxx_config = drake.cxx.Config(cxx_config)
+
+  udt = drake.include('udt', cxx_toolkit, cxx_config, prefix = prefix)
+
+  boost = drake.cxx.boost.Boost()
+  cxx_config += udt.config
+  cxx_config += boost.cfg_system
+  cxx_config += boost.cfg_thread
+  cxx_config.add_local_include_path('src')
+  cxx_config.standard = drake.cxx.Config.cxx_0x
+
+  sources = drake.nodes(
+    'src/asio-udt/acceptor.cc',
+    'src/asio-udt/acceptor.hh',
+    'src/asio-udt/error-category.cc',
+    'src/asio-udt/error-category.hh',
+    'src/asio-udt/service.cc',
+    'src/asio-udt/service.hh',
+    'src/asio-udt/socket.cc',
+    'src/asio-udt/socket.hh',
+    )
+
+  lib = drake.cxx.DynLib('lib/asio-udt', sources + [udt.library], cxx_toolkit, cxx_config)
+
+  class Tester(drake.Builder):
+
+    def __init__(self, test, log):
+      drake.Builder.__init__(self, [test], [log])
+      self.__test = test
+      self.__log = log
+
+    def execute(self):
+      if self.cmd('Test %s' % self.__test.path(),
+                  'LD_LIBRARY_PATH="%s" %s' % (iter(udt.config.lib_paths).__next__(),
+                                               self.__test.path())):
+        self.__log.path().touch()
+        return True
+      return False
+
+  def test_case(path):
+    exe = drake.cxx.Executable('tests/%s' % path,
+                               [drake.node('tests/%s.cc' % path), lib],
+                               cxx_toolkit, cxx_config)
+    log = drake.node('tests/%s.log' % path)
+    Tester(exe, log)
+    return log
+  logs = map(test_case, ['test'])
+  cherk = drake.Rule('check', logs)
