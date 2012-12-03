@@ -13,6 +13,7 @@ namespace boost
         acceptor::acceptor(io_service& io_service, int port)
           : _service(io_service)
           , _udt_service(use_service<service>(_service))
+          , _port(port)
           , _socket(io_service)
         {
           this->_socket._bind(port);
@@ -30,9 +31,16 @@ namespace boost
             if (UDT::getlasterror().getErrorCode() ==
                 udt_category::EASYNCRCV)
             {
-              auto action =
+              std::function<void ()> action =
                 std::bind(&acceptor::async_accept, this, handler);
-              _udt_service.register_read(&this->_socket, action);
+              socket* nullsock = nullptr;
+              system::error_code canceled(system::errc::operation_canceled,
+                                          system::system_category());
+              std::function<void ()> cancel =
+                std::bind(handler,
+                          canceled,
+                          nullsock);
+              _udt_service.register_read(&this->_socket, action, cancel);
             }
             else
               throw_udt();
@@ -43,6 +51,18 @@ namespace boost
             this->_service.post
               (std::bind(handler, system::error_code(), res));
           }
+        }
+
+        void
+        acceptor::cancel()
+        {
+          _udt_service.cancel_read(&_socket);
+        }
+
+        int
+        acceptor::port() const
+        {
+          return _port;
         }
       }
     }

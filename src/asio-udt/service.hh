@@ -28,9 +28,17 @@ namespace boost
             void
             shutdown_service();
             void
-            register_read(socket* sock, std::function<void ()> const& action);
+            register_read(socket* sock,
+                          std::function<void ()> const& action,
+                          std::function<void ()> const& cancel);
             void
-            register_write(socket* sock, std::function<void ()> const& action);
+            cancel_read(socket* sock);
+            void
+            register_write(socket* sock,
+                           std::function<void ()> const& action,
+                           std::function<void ()> const& cancel);
+            void
+            cancel_write(socket* sock);
 
           private:
             int _epoll;
@@ -42,8 +50,11 @@ namespace boost
             class work
             {
               public:
-                work(io_service& service, std::function<void ()> const& action);
+                work(io_service& service,
+                     std::function<void ()> const& action,
+                     std::function<void ()> const& cancel);
                 std::function<void ()> action;
+                std::function<void ()> cancel;
               private:
                 io_service::work _work;
             };

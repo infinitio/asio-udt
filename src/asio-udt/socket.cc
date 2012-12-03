@@ -40,29 +40,42 @@ namespace boost
         }
 
         void
-        socket::async_connect(std::string const& address, int port,
+        socket::_handle_connect(std::function<void (system::error_code const&)>
+                                const& handler)
+        {
+          system::error_code err;
+          if (!UDT::connected(this->_udt_socket))
+            // FIXME: actual error code is lost by UDT
+            err = system::error_code(udt_category::ENOSERVER,
+                                     udt_category::get());
+          this->get_io_service().post(boost::bind(handler, err));
+        }
+
+        void
+        socket::async_connect(endpoint_type const& peer,
                               std::function<void (system::error_code const&)>
                               const& handler)
         {
-          addrinfo hints;
-          memset(&hints, 0, sizeof(struct addrinfo));
-          hints.ai_flags = AI_PASSIVE;
-          hints.ai_family = AF_INET;
-          hints.ai_socktype = SOCK_DGRAM;
-          addrinfo* peer;
-          if (getaddrinfo(address.c_str(),
-                          lexical_cast<std::string>(port).c_str(),
-                          &hints, &peer))
-            throw_errno();
+          // FIXME: handle ipv6
+          _peer = peer;
+          sockaddr_in addr;
+          addr.sin_family = AF_INET;
+          addr.sin_port = htons(peer.port());
+          auto ip_bin = peer.address().to_v4().to_bytes();
+          // std::cerr << "IP from asio: "
+          //           << inet_ntoa((in_addr&)ip_bin) << std::endl;
+          addr.sin_addr.s_addr = (unsigned int&)ip_bin;
+          //addr.sin_addr.s_addr = inet_ntoa();
           if (UDT::connect(this->_udt_socket,
-                           peer->ai_addr,
-                           peer->ai_addrlen) == UDT::ERROR)
+                           (sockaddr*)&addr,
+                           sizeof(sockaddr_in)) == UDT::ERROR)
             throw_udt();
-          freeaddrinfo(peer);
+          system::error_code canceled(system::errc::operation_canceled,
+                                      system::system_category());
           this->_udt_service.register_write
-            (this, std::bind(&io_service::post<std::function<void ()>>,
-                             std::ref(this->get_io_service()),
-                             boost::bind(handler, system::error_code())));
+            (this,
+             std::bind(&socket::_handle_connect, this, handler),
+             std::bind(handler, canceled));
         }
 
         io_service&
@@ -72,9 +85,10 @@ namespace boost
         }
 
         void
-        socket::async_read_some(mutable_buffer buffer,
-                                std::function<void (system::error_code const&,
-                                                    std::size_t)> const& handler)
+        socket::async_read_some(
+          mutable_buffer buffer,
+          std::function<void (system::error_code const&,
+                              std::size_t)> const& handler)
         {
           auto buf = buffer_cast<char*>(buffer);
           int size = buffer_size(buffer);
@@ -99,7 +113,10 @@ namespace boost
           {
             auto action =
               std::bind(&socket::async_read_some, this, buffer, handler);
-            this->_udt_service.register_read(this, action);
+            system::error_code canceled(system::errc::operation_canceled,
+                                        system::system_category());
+            auto cancel = std::bind(handler, canceled, 0);
+            this->_udt_service.register_read(this, action, cancel);
           }
         }
 
@@ -125,9 +142,12 @@ namespace boost
           }
           else
           {
+            system::error_code canceled(system::errc::operation_canceled,
+                                        system::system_category());
             this->_udt_service.register_write
-              (this, std::bind(&socket::async_write_some,
-                               this, buffer, handler));
+              (this,
+               std::bind(&socket::async_write_some, this, buffer, handler),
+               std::bind(handler, canceled, 0));
           }
         }
 
@@ -157,12 +177,38 @@ namespace boost
         }
 
         void
+        socket::shutdown(shutdown_type, system::error_code&)
+        {
+          // FIXME: nothing ?
+        }
+
+        void
         socket::close()
         {
           std::cerr << "CLOSE " << _udt_socket << std::endl;
           if (UDT::close(_udt_socket) == UDT::ERROR)
             throw_udt();
           std::cerr << "/CLOSE " << _udt_socket << std::endl;
+        }
+
+        void
+        socket::cancel()
+        {
+          std::cerr << "CANCEL" << std::endl;
+          this->_udt_service.cancel_read(this);
+          this->_udt_service.cancel_write(this);
+        }
+
+        socket::endpoint_type
+        socket::local_endpoint() const
+        {
+          return _local;
+        }
+
+        socket::endpoint_type
+        socket::remote_endpoint() const
+        {
+          return _peer;
         }
       }
     }

@@ -19,6 +19,9 @@ namespace boost
         class socket: public boost::noncopyable
         {
           public:
+            typedef udp::endpoint endpoint_type;
+
+          public:
             explicit
             socket(io_service& io_service);
             ~socket();
@@ -28,7 +31,7 @@ namespace boost
 
           public:
             void
-            async_connect(std::string const& address, int port,
+            async_connect(endpoint_type const& endpoint,
                           std::function<void (boost::system::error_code const&)>
                           const& handler);
             io_service&
@@ -43,8 +46,26 @@ namespace boost
                                                  std::size_t)> const& handler);
             void
             close();
+            enum shutdown_type
+            {
+              shutdown_receive,
+              shutdown_send,
+              shutdown_both,
+            };
+            void
+            shutdown(shutdown_type, system::error_code&);
+            void
+            cancel();
+            endpoint_type
+            local_endpoint() const;
+            endpoint_type
+            remote_endpoint() const;
 
             //private:
+            void
+            _handle_connect(std::function<void (system::error_code const&)>
+                            const& handler);
+
             friend class acceptor;
             friend class service;
             void _bind(int port);
@@ -53,6 +74,8 @@ namespace boost
             UDTSOCKET _udt_socket;
             bool _ready_read;
             bool _ready_write;
+            endpoint_type _local;
+            endpoint_type _peer;
         };
       }
     }

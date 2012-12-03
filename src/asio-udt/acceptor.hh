@@ -22,10 +22,15 @@ namespace boost
             async_accept(std::function<void (boost::system::error_code const&,
                                              boost::asio::ip::udt::socket*)>
                          const& handler);
+            void
+            cancel();
+            int
+            port() const;
 
           private:
             io_service& _service;
             service& _udt_service;
+            int _port;
             socket _socket;
             std::function<void ()> _read_action;
         };
