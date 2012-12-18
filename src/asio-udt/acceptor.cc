@@ -53,8 +53,10 @@ namespace boost
             if (peer.sa_family == AF_INET)
               // IP v4
               {
+                namespace ip = boost::asio::ip;
+
                 sockaddr_in& peer_v4 = (sockaddr_in&)peer;
-                std::array<unsigned char, 4ul> ip_bin;
+                ip::address_v4::bytes_type ip_bin;
                 std::copy(&reinterpret_cast<unsigned char&>(peer_v4.sin_addr.s_addr),
                           &reinterpret_cast<unsigned char&>(peer_v4.sin_addr.s_addr) + 4,
                           ip_bin.begin());
@@ -62,11 +64,13 @@ namespace boost
                 auto port = ntohs(peer_v4.sin_port);
                 endpoint = socket::endpoint_type(v4, port);
               }
-            else
+            else if (peer.sa_family == AF_INET6)
               // IP v6
               {
+                namespace ip = boost::asio::ip;
+
                 sockaddr_in6& peer_v6 = (sockaddr_in6&)peer;
-                std::array<unsigned char, 16ul> ip_bin;
+                ip::address_v6::bytes_type ip_bin;
                 std::copy(&reinterpret_cast<unsigned char&>(peer_v6.sin6_addr.s6_addr),
                           &reinterpret_cast<unsigned char&>(peer_v6.sin6_addr.s6_addr) + 16,
                           ip_bin.begin());
