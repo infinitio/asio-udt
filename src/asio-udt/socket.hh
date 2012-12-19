@@ -70,6 +70,7 @@ namespace boost
             friend class acceptor;
             friend class service;
             void _bind(int port);
+            void _bind_fd(int fd);
             io_service& _service;
             service& _udt_service;
             UDTSOCKET _udt_socket;

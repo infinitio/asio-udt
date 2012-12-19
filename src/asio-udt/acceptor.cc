@@ -19,6 +19,15 @@ namespace boost
           this->_socket._bind(port);
         }
 
+        acceptor::acceptor(io_service& io_service, int port, int fd)
+          : _service(io_service)
+          , _udt_service(use_service<service>(_service))
+          , _port(port)
+          , _socket(io_service)
+        {
+          this->_socket._bind_fd(fd);
+        }
+
         void
         acceptor::async_accept(
           std::function<void (boost::system::error_code const&,

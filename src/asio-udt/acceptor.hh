@@ -18,6 +18,7 @@ namespace boost
         {
           public:
             acceptor(io_service& io_service, int port);
+            acceptor(io_service& io_service, int port, int fd);
             void
             async_accept(std::function<void (boost::system::error_code const&,
                                              boost::asio::ip::udt::socket*)>

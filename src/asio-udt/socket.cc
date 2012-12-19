@@ -156,6 +156,8 @@ namespace boost
           }
         }
 
+        static const int queue_size = 1024;
+
         void
         socket::_bind(int port)
         {
@@ -175,10 +177,19 @@ namespace boost
           if (UDT::bind(this->_udt_socket,
                         local->ai_addr, local->ai_addrlen) == UDT::ERROR)
             throw_udt();
-          static const int queue_size = 1024;
           if (UDT::listen(this->_udt_socket, queue_size) == UDT::ERROR)
             throw_udt();
           freeaddrinfo(local);
+        }
+
+        void
+        socket::_bind_fd(int fd)
+        {
+          // Listen.
+          if (UDT::bind2(this->_udt_socket, fd) == UDT::ERROR)
+            throw_udt();
+          if (UDT::listen(this->_udt_socket, queue_size) == UDT::ERROR)
+            throw_udt();
         }
 
         void
