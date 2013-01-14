@@ -24,19 +24,20 @@ namespace boost
         }
 
         socket::socket(io_service& io_service, int fd,
-                       endpoint_type const& peer)
+                       endpoint_type const& endpoint)
           : _service(io_service)
           , _udt_service(use_service<service>(_service))
           , _udt_socket(fd)
           , _ready_read(false)
           , _ready_write(false)
-          , _peer(peer)
+          , _peer(endpoint)
           , _connecting(false)
         {
           if (this->_udt_socket == -1)
             throw_errno();
-          // UDT::setsockopt(this->_udt_socket, 0,
-          //                 UDT_RENDEZVOUS, new bool(true), sizeof(bool));
+          // FIXME: make RDV mode parmeterizable
+          UDT::setsockopt(this->_udt_socket, 0,
+                          UDT_RENDEZVOUS, new bool(true), sizeof(bool));
           UDT::setsockopt(this->_udt_socket, 0, UDT_SNDSYN,
                           new bool(false), sizeof(bool));
           UDT::setsockopt(this->_udt_socket, 0, UDT_RCVSYN,

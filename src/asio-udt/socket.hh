@@ -70,7 +70,9 @@ namespace boost
             friend class acceptor;
             friend class service;
             void _bind(int port);
+          public: // FIXME
             void _bind_fd(int fd);
+          private:
             io_service& _service;
             service& _udt_service;
             UDTSOCKET _udt_socket;
