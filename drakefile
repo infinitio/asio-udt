@@ -16,7 +16,7 @@ def configure(cxx_toolkit = None, cxx_config = None, boost = None, prefix = '/us
   udt = drake.include('udt', cxx_toolkit, cxx_config, prefix = prefix)
   udt_library = drake.copy(udt.library, '.', strip_prefix = 'udt')
 
-  boost = drake.cxx.boost.Boost()
+  boost = boost or drake.cxx.boost.Boost()
   cxx_config += udt.config
   cxx_config += boost.cfg_system
   cxx_config += boost.cfg_thread
