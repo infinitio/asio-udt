@@ -18,6 +18,7 @@ def configure(cxx_toolkit = None, cxx_config = None, boost = None, prefix = '/us
 
   boost = boost or drake.cxx.boost.Boost()
   cxx_config += udt.config
+  cxx_config += boost.cfg
   cxx_config += boost.cfg_system
   cxx_config += boost.cfg_thread
   cxx_config.add_local_include_path('src')
