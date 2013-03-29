@@ -57,10 +57,13 @@ namespace boost
             while (true)
               {
                 DEBUG("epoll_wait");
-                for (auto r: _read_map)
-                  DEBUG ("  read: " << r.first);
-                for (auto w: _write_map)
-                  DEBUG ("  write: " << w.first);
+                {
+                  boost::unique_lock<boost::mutex> lock(_lock);
+                  for (auto r: _read_map)
+                    DEBUG ("  read: " << r.first);
+                  for (auto w: _write_map)
+                    DEBUG ("  write: " << w.first);
+                }
                 if (UDT::epoll_wait(this->_epoll, &readfds, &writefds, -1) < 0)
                   {
                     if (_stop)
