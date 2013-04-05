@@ -22,7 +22,7 @@ def configure(cxx_toolkit = None, cxx_config = None, boost = None, prefix = '/us
   cxx_config += boost.cfg_system
   cxx_config += boost.cfg_thread
   cxx_config.add_local_include_path('src')
-  cxx_config.standard = drake.cxx.Config.cxx_0x
+  cxx_config.standard = drake.cxx.Config.cxx_11
   cxx_config.lib('udt')
 
   config = drake.cxx.Config(udt.config)
