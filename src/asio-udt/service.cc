@@ -33,6 +33,11 @@ namespace boost
           , _stop(false)
         {}
 
+        service::~service()
+        {
+          shutdown_service();
+        }
+
         io_service::id id;
 
         void
@@ -40,6 +45,8 @@ namespace boost
         {
           {
             boost::unique_lock<boost::mutex> lock(_lock);
+            if (_stop)
+              return;
             UDT::epoll_release(_epoll);
             _barrier.notify_one();
             _stop = true;

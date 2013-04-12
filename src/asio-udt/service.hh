@@ -19,8 +19,9 @@ namespace boost
       {
         class service: public io_service::service
         {
-          public:
-            service(io_service& io_service);
+        public:
+          service(io_service& io_service);
+          ~service();
 
             static io_service::id id;
 
