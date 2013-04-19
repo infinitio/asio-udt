@@ -7,13 +7,13 @@
 
 static boost::mutex _debug_mutex;
 
-#define DEBUG(Fmt)                                              \
-  // do                                                            \
-  // {                                                             \
-  //   boost::lock_guard<boost::mutex> lock(_debug_mutex);         \
-  //   std::cerr << Fmt << std::endl;                              \
-  // }                                                             \
-  // while (false)                                                 \
+#define DEBUG(Fmt)
+//   do
+//   {
+//     boost::lock_guard<boost::mutex> lock(_debug_mutex);
+//     std::cerr << Fmt << std::endl;
+//   }
+//   while (false)
 
 
 namespace boost
