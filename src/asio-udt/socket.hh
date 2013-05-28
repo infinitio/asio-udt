@@ -16,6 +16,33 @@ namespace boost
     {
       namespace udt
       {
+        struct basic_option
+        {
+          bool value;
+          enum option
+          {
+            rendezvous,
+            non_blocking
+          };
+          option opt;
+        };
+
+        struct rendezvous:
+          public basic_option
+        {
+          rendezvous(bool value)
+            : basic_option{value, option::rendezvous}
+          {}
+        };
+
+        struct non_blocking:
+          public basic_option
+        {
+          non_blocking(bool value)
+            : basic_option{value, option::non_blocking}
+          {}
+        };
+
         class socket: public boost::noncopyable
         {
           public:
@@ -29,6 +56,14 @@ namespace boost
           private:
             socket(io_service& io_service, int fd,
                    endpoint_type const& endpoint);
+
+          public:
+            void
+            set_option(basic_option const& option);
+
+            void
+            set_option(basic_option const& option,
+                       boost::system::error_code& code);
 
           public:
             void

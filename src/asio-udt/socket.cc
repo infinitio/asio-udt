@@ -15,12 +15,59 @@ namespace boost
         socket::socket(io_service& io_service)
           : socket(io_service, UDT::socket(AF_INET, SOCK_STREAM, 0),
                    endpoint_type())
-        {}
+        {
+          this->set_option(non_blocking{true});
+        }
 
         socket::~socket()
         {
           if (this->_udt_socket != -1)
             this->close();
+        }
+
+        void
+        socket::set_option(basic_option const& opt,
+                           boost::system::error_code &code)
+        {
+          int err;
+          switch (opt.opt)
+          {
+            case basic_option::rendezvous:
+              err = UDT::setsockopt(this->_udt_socket, 0,
+                                    UDT_RENDEZVOUS,
+                                    new bool(opt.value), sizeof(bool));
+              break;
+            case basic_option::non_blocking:
+              // UDT_SNDSYN and UDT_RCVSYN means "make it blocking". So we
+              // negate the value of non-blocking to have the right result.
+              err = UDT::setsockopt(this->_udt_socket, 0, UDT_SNDSYN,
+                                    new bool(!opt.value), sizeof(bool));
+              if (err == UDT::ERROR)
+                break;
+              err = UDT::setsockopt(this->_udt_socket, 0, UDT_RCVSYN,
+                                    new bool(!opt.value), sizeof(bool));
+              if (err == UDT::ERROR)
+                break;
+              break;
+            default:
+              break;
+          }
+          if (err == UDT::ERROR)
+          {
+            auto error = UDT::getlasterror();
+            code.assign(error.getErrorCode(), udt_category::get());
+          }
+        }
+
+        void
+        socket::set_option(basic_option const& opt)
+        {
+          boost::system::error_code error;
+          this->set_option(opt, error);
+          if (error)
+          {
+            throw_udt();
+          }
         }
 
         socket::socket(io_service& io_service, int fd,
@@ -35,13 +82,7 @@ namespace boost
         {
           if (this->_udt_socket == -1)
             throw_errno();
-          // FIXME: make RDV mode parmeterizable
-          UDT::setsockopt(this->_udt_socket, 0,
-                          UDT_RENDEZVOUS, new bool(true), sizeof(bool));
-          UDT::setsockopt(this->_udt_socket, 0, UDT_SNDSYN,
-                          new bool(false), sizeof(bool));
-          UDT::setsockopt(this->_udt_socket, 0, UDT_RCVSYN,
-                          new bool(false), sizeof(bool));
+          this->set_option(non_blocking{true});
         }
 
         void
