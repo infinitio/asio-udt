@@ -12,6 +12,18 @@ namespace boost
     {
       namespace udt
       {
+        rendezvous::rendezvous(bool value):
+          basic_option{value, option::rendezvous}
+        {}
+
+        reuseaddr::reuseaddr(bool value):
+          basic_option{value, option::reuseaddr}
+        {}
+
+        non_blocking::non_blocking(bool value):
+          basic_option{value, option::non_blocking}
+        {}
+
         socket::socket(io_service& io_service)
           : socket(io_service, UDT::socket(AF_INET, SOCK_STREAM, 0),
                    endpoint_type())

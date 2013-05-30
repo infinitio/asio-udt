@@ -30,17 +30,19 @@ namespace boost
         struct rendezvous:
           public basic_option
         {
-          rendezvous(bool value)
-            : basic_option{value, option::rendezvous}
-          {}
+          rendezvous(bool value);
+        };
+
+        struct reuseaddr:
+          public basic_option
+        {
+          reuseaddr(bool value);
         };
 
         struct non_blocking:
           public basic_option
         {
-          non_blocking(bool value)
-            : basic_option{value, option::non_blocking}
-          {}
+          non_blocking(bool value);
         };
 
         class socket: public boost::noncopyable
