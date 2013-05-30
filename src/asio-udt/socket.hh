@@ -22,7 +22,8 @@ namespace boost
           enum option
           {
             rendezvous,
-            non_blocking
+            non_blocking,
+            reuseaddr,
           };
           option opt;
         };

@@ -41,7 +41,7 @@ namespace boost
         socket::set_option(basic_option const& opt,
                            boost::system::error_code &code)
         {
-          int err;
+          int err = UDT::ERROR;
           switch (opt.opt)
           {
             case basic_option::rendezvous:
@@ -60,6 +60,10 @@ namespace boost
                                     new bool(!opt.value), sizeof(bool));
               if (err == UDT::ERROR)
                 break;
+              break;
+            case basic_option::reuseaddr:
+              err = UDT::setsockopt(this->_udt_socket, 0, UDT_REUSEADDR,
+                                    new bool(opt.value), sizeof(bool));
               break;
             default:
               break;
