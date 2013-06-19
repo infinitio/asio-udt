@@ -2,6 +2,7 @@
 # define ASIO_UDT_ERROR_CATEGORY_HH
 
 # include <boost/system/error_code.hpp>
+# include <string>
 
 namespace boost
 {
@@ -15,7 +16,7 @@ namespace boost
         throw_errno();
 
         void
-        throw_udt();
+        throw_udt(std::string const& what = "");
 
         class udt_category : public system::error_category
         {

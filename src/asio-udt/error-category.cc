@@ -23,11 +23,11 @@ namespace boost
         }
 
         void
-        throw_udt()
+        throw_udt(std::string const& what)
         {
           system::error_code ec(UDT::getlasterror().getErrorCode(),
                                 udt_category::get());
-          throw system::system_error(ec);
+          throw system::system_error(ec, what);
         }
 
         udt_category&
