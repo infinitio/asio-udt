@@ -29,6 +29,9 @@ namespace boost
             port() const;
 
           private:
+            void _listen(unsigned short port);
+
+          private:
             io_service& _service;
             service& _udt_service;
             int _port;

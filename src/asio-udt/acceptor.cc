@@ -16,7 +16,7 @@ namespace boost
           , _port(port)
           , _socket(io_service)
         {
-          this->_socket._bind(port);
+          this->_listen(port);
         }
 
         acceptor::acceptor(io_service& io_service, int port, int fd)
@@ -91,6 +91,18 @@ namespace boost
             this->_service.post
               (std::bind(handler, system::error_code(), res));
           }
+        }
+
+        static const int queue_size = 1024;
+
+        void
+        acceptor::_listen(unsigned short port)
+        {
+          // Build the listening endpoint.
+          this->_socket.bind(port);
+          // Listen.
+          if (UDT::listen(this->_socket._udt_socket, queue_size) == UDT::ERROR)
+            throw_udt();
         }
 
         void
