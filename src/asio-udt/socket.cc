@@ -119,19 +119,17 @@ namespace boost
                               std::function<void (system::error_code const&)>
                               const& handler)
         {
-          // FIXME: handle ipv6
           _peer = peer;
-          sockaddr_in addr;
-          addr.sin_family = AF_INET;
-          addr.sin_port = htons(peer.port());
-          auto ip_bin = peer.address().to_v4().to_bytes();
-          addr.sin_addr.s_addr = (unsigned int&)ip_bin;
           // std::cerr << "IP from asio: "
           //           << inet_ntoa(addr.sin_addr) << std::endl;
-          if (UDT::connect(this->_udt_socket,
-                           (sockaddr*)&addr,
-                           sizeof(sockaddr_in)) == UDT::ERROR)
-            throw_udt();
+          if (UDT::connect(this->_udt_socket, peer.data(),
+                           peer.size()) == UDT::ERROR)
+          {
+            std::stringstream ss;
+
+            ss << "connect(" << this->_udt_socket << ", " << peer << ")";
+            throw_udt(ss.str());
+          }
           this->_connecting = true;
           system::error_code canceled(system::errc::operation_canceled,
                                       system::system_category());
@@ -165,12 +163,12 @@ namespace boost
             else
               error = system::error_code(UDT::getlasterror().getErrorCode(),
                                          udt_category::get());
-            this->_service.post(bind(handler, error, read));
+            this->_service.post(std::bind(handler, error, read));
             return;
           }
           if (read > 0)
           {
-            this->_service.post(bind(handler, system::error_code(), read));
+            this->_service.post(std::bind(handler, system::error_code(), read));
           }
           else
           {
@@ -196,12 +194,12 @@ namespace boost
           {
             system::error_code error(UDT::getlasterror().getErrorCode(),
                                      udt_category::get());
-            this->_service.post(bind(handler, error, sent));
+            this->_service.post(std::bind(handler, error, sent));
             return;
           }
           if (sent > 0)
           {
-            this->_service.post(bind(handler, system::error_code(), sent));
+            this->_service.post(std::bind(handler, system::error_code(), sent));
           }
           else
           {
@@ -214,30 +212,20 @@ namespace boost
           }
         }
 
-        static const int queue_size = 1024;
+        void
+        socket::bind(endpoint_type const& endpoint)
+        {
+          if (UDT::bind(this->_udt_socket,
+                        endpoint.data(), endpoint.size()) == UDT::ERROR)
+              throw_udt();
+        }
 
         void
-        socket::_bind(int port)
+        socket::bind(unsigned short port)
         {
-          // Build the listening endpoint.
-          addrinfo* local;
-          {
-            addrinfo hints;
-            memset(&hints, 0, sizeof(struct addrinfo));
-            hints.ai_flags = AI_PASSIVE;
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(NULL, lexical_cast<std::string>(port).c_str(),
-                            &hints, &local) != 0)
-              throw_errno();
-          }
-          // Listen.
-          if (UDT::bind(this->_udt_socket,
-                        local->ai_addr, local->ai_addrlen) == UDT::ERROR)
-            throw_udt();
-          if (UDT::listen(this->_udt_socket, queue_size) == UDT::ERROR)
-            throw_udt();
-          freeaddrinfo(local);
+          endpoint_type local_endpoint{boost::asio::ip::udp::v4(), port};
+
+          this->bind(local_endpoint);
         }
 
         void

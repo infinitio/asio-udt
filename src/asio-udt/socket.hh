@@ -108,7 +108,8 @@ namespace boost
             friend class acceptor;
             friend class service;
           public: // FIXME
-            void _bind(int port);
+            void bind(endpoint_type const& endpoint);
+            void bind(unsigned short port);
             void _bind_fd(int fd);
           private:
             io_service& _service;
