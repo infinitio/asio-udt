@@ -29,9 +29,13 @@ namespace boost
         service::service(io_service& io_service)
           : io_service::service(io_service)
           , _epoll(UDT::epoll_create())
-          , _thread(std::bind(&service::_run, this))
+          , _thread(nullptr)
           , _stop(false)
-        {}
+        {
+          // Create the thread after all members have been initialized.
+          this->_thread.reset(
+            new boost::thread(std::bind(&service::_run, this)));
+        }
 
         service::~service()
         {
@@ -51,7 +55,7 @@ namespace boost
             _barrier.notify_one();
             _stop = true;
           }
-          _thread.join();
+          this->_thread->join();
         }
 
         void

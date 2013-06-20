@@ -44,7 +44,7 @@ namespace boost
           private:
             int _epoll;
 
-            boost::thread _thread;
+            std::unique_ptr<boost::thread> _thread;
             void
             _run();
 
