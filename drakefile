@@ -24,6 +24,7 @@ def configure(cxx_toolkit = None, cxx_config = None, boost = None, prefix = '/us
   cxx_config.add_local_include_path('src')
   cxx_config.standard = drake.cxx.Config.cxx_11
   cxx_config.lib('udt')
+  cxx_config.lib_path_runtime('.')
 
   config = drake.cxx.Config(udt.config)
   config.add_local_include_path('src')
