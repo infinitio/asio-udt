@@ -120,6 +120,9 @@ namespace boost
             endpoint_type _local;
             endpoint_type _peer;
             bool _connecting;
+            friend
+            std::ostream&
+            operator << (std::ostream& stream, socket const& socket);
         };
       }
     }

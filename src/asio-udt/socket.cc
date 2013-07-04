@@ -16,6 +16,13 @@ namespace boost
     {
       namespace udt
       {
+        std::ostream&
+        operator << (std::ostream& stream, socket const& socket)
+        {
+          stream << "UDT socket " << socket._udt_socket;
+          return stream;
+        }
+
         rendezvous::rendezvous(bool value):
           basic_option{value, option::rendezvous}
         {}
@@ -33,10 +40,12 @@ namespace boost
                    endpoint_type())
         {
           this->set_option(non_blocking{true});
+          this->_udt_service.register_socket(this);
         }
 
         socket::~socket()
         {
+          this->_udt_service.unregister_socket(this);
           if (this->_udt_socket != -1)
             this->close();
         }

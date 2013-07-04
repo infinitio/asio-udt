@@ -28,6 +28,14 @@ namespace boost
       {
         io_service::id service::id;
 
+        static
+        std::ostream&
+        operator << (std::ostream& stream, service const& service)
+        {
+          stream << "UDT service";
+          return stream;
+        }
+
         service::service(io_service& io_service)
           : io_service::service(io_service)
           , _epoll(UDT::epoll_create())
@@ -154,19 +162,36 @@ namespace boost
         {}
 
         void
+        service::register_socket(socket* sock)
+        {
+          boost::unique_lock<boost::mutex> lock(_lock);
+          ELLE_TRACE_SCOPE("%s: register %s for events", *this, *sock);
+          static int const flags =
+            UDT_EPOLL_IN | UDT_EPOLL_OUT | UDT_EPOLL_ERR;
+          UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
+          _barrier.notify_one();
+        }
+
+        void
+        service::unregister_socket(socket* sock)
+        {
+          boost::unique_lock<boost::mutex> lock(_lock);
+          ELLE_TRACE_SCOPE("%s: unregister %s for events", *this, *sock);
+          UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
+          _barrier.notify_one();
+        }
+
+        void
         service::register_read(socket* sock,
                                std::function<void ()> const& action,
                                std::function<void ()> const& cancel)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: register read action on %s", *this, *sock);
-          static int const flags = UDT_EPOLL_IN | UDT_EPOLL_ERR;
-          UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
           this->_read_map.insert(std::make_pair
                                  (sock->_udt_socket,
                                   work(this->get_io_service(),
                                        action, cancel)));
-          _barrier.notify_one();
         }
 
         void
@@ -174,14 +199,12 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: cancel read action on %s", *this, *sock);
-          UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
           auto work = this->_read_map.find(sock->_udt_socket);
           if (work != this->_read_map.end())
-            {
-              work->second.cancel();
-              this->_read_map.erase(work);
-            }
-          _barrier.notify_one();
+          {
+            work->second.cancel();
+            this->_read_map.erase(work);
+          }
         }
 
         void
@@ -191,13 +214,10 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: register write action on %s", *this, *sock);
-          static int const flags = UDT_EPOLL_OUT | UDT_EPOLL_ERR;
-          UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
           this->_write_map.insert(std::make_pair
                                  (sock->_udt_socket,
                                   work(this->get_io_service(),
                                        action, cancel)));
-          _barrier.notify_one();
         }
 
         void
@@ -205,13 +225,12 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: cancel write action on %s", *this, *sock);
-          UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
           auto work = this->_write_map.find(sock->_udt_socket);
           if (work != this->_write_map.end())
-            {
-              work->second.cancel();
-              this->_write_map.erase(work);
-            }
+          {
+            work->second.cancel();
+            this->_write_map.erase(work);
+          }
         }
       }
     }

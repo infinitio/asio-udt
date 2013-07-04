@@ -29,6 +29,10 @@ namespace boost
             void
             shutdown_service();
             void
+            register_socket(socket* sock);
+            void
+            unregister_socket(socket* sock);
+            void
             register_read(socket* sock,
                           std::function<void ()> const& action,
                           std::function<void ()> const& cancel);
