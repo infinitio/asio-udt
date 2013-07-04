@@ -1,5 +1,3 @@
-#include <udt/udt.h>
-
 #include <asio-udt/error-category.hh>
 #include <asio-udt/service.hh>
 #include <asio-udt/socket.hh>
@@ -121,7 +119,8 @@ namespace boost
               {
                 ELLE_DEBUG("%s: execute read action for %s", *this, read);
                 // static int const flags = UDT_EPOLL_IN;
-                UDT::epoll_remove_usock(_epoll, read);
+                this->_wait_read.erase(read);
+                this->_wait_refresh(read);
                 this->get_io_service().post(it->second.action);
                 _read_map.erase(it);
               }
@@ -135,7 +134,8 @@ namespace boost
               {
                 ELLE_DEBUG("%s: execute read action for %s", *this, write);
                 // static int const flags = UDT_EPOLL_OUT;
-                UDT::epoll_remove_usock(_epoll, write);
+                this->_wait_write.erase(write);
+                this->_wait_refresh(write);
                 this->get_io_service().post(it->second.action);
                 _write_map.erase(it);
               }
@@ -154,14 +154,41 @@ namespace boost
         {}
 
         void
+        service::_wait_refresh(UDTSOCKET sock)
+        {
+          auto read = this->_wait_read.find(sock);
+          auto write = this->_wait_write.find(sock);
+          int flags = UDT_EPOLL_ERR;
+          bool wait = false;
+          if (read != this->_wait_read.end())
+          {
+            flags |= UDT_EPOLL_IN;
+            wait = true;
+          }
+          if (write != this->_wait_write.end())
+          {
+            flags |= UDT_EPOLL_OUT;
+            wait = true;
+          }
+          UDT::epoll_remove_usock(_epoll, sock);
+          if (wait)
+          {
+            ELLE_DEBUG("%s: reregister %s", *this, sock);
+            UDT::epoll_add_usock(_epoll, sock, &flags);
+          }
+          else
+            ELLE_DEBUG("%s: unregister %s", *this, sock);
+        }
+
+        void
         service::register_read(socket* sock,
                                std::function<void ()> const& action,
                                std::function<void ()> const& cancel)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: register read action on %s", *this, *sock);
-          static int const flags = UDT_EPOLL_IN | UDT_EPOLL_ERR;
-          UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
+          this->_wait_read.insert(sock->_udt_socket);
+          this->_wait_refresh(sock->_udt_socket);
           this->_read_map.insert(std::make_pair
                                  (sock->_udt_socket,
                                   work(this->get_io_service(),
@@ -174,7 +201,8 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: cancel read action on %s", *this, *sock);
-          UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
+          this->_wait_read.erase(sock->_udt_socket);
+          this->_wait_refresh(sock->_udt_socket);
           auto work = this->_read_map.find(sock->_udt_socket);
           if (work != this->_read_map.end())
             {
@@ -191,8 +219,8 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: register write action on %s", *this, *sock);
-          static int const flags = UDT_EPOLL_OUT | UDT_EPOLL_ERR;
-          UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
+          this->_wait_write.insert(sock->_udt_socket);
+          this->_wait_refresh(sock->_udt_socket);
           this->_write_map.insert(std::make_pair
                                  (sock->_udt_socket,
                                   work(this->get_io_service(),
@@ -205,7 +233,8 @@ namespace boost
         {
           boost::unique_lock<boost::mutex> lock(_lock);
           ELLE_TRACE_SCOPE("%s: cancel write action on %s", *this, *sock);
-          UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
+          this->_wait_write.erase(sock->_udt_socket);
+          this->_wait_refresh(sock->_udt_socket);
           auto work = this->_write_map.find(sock->_udt_socket);
           if (work != this->_write_map.end())
             {

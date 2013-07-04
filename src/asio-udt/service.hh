@@ -7,6 +7,8 @@
 # include <boost/asio.hpp>
 # include <boost/thread.hpp>
 
+# include <udt/udt.h>
+
 # include <asio-udt/fwd.hh>
 
 namespace boost
@@ -40,6 +42,11 @@ namespace boost
                            std::function<void ()> const& cancel);
             void
             cancel_write(socket* sock);
+        private:
+          std::set<UDTSOCKET> _wait_read;
+          std::set<UDTSOCKET> _wait_write;
+          void
+          _wait_refresh(UDTSOCKET sock);
 
           private:
             int _epoll;
