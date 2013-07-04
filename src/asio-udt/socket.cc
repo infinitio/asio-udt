@@ -4,6 +4,10 @@
 #include <asio-udt/service.hh>
 #include <asio-udt/socket.hh>
 
+#include <elle/log.hh>
+
+ELLE_LOG_COMPONENT("boost.asio.ip.udt.socket");
+
 namespace boost
 {
   namespace asio
@@ -151,8 +155,11 @@ namespace boost
           std::function<void (system::error_code const&,
                               std::size_t)> const& handler)
         {
+          ELLE_TRACE_SCOPE("%s: read at most %s bytes",
+                           *this, boost::asio::buffer_size(buffer));
           auto buf = buffer_cast<char*>(buffer);
           int size = buffer_size(buffer);
+          ELLE_DEBUG("%s: try reading directly", *this);
           int read = UDT::recv(_udt_socket, buf, size, 0);
           if (read == -1
               && UDT::getlasterror().getErrorCode() != udt_category::EASYNCRCV)
@@ -163,11 +170,13 @@ namespace boost
             else
               error = system::error_code(UDT::getlasterror().getErrorCode(),
                                          udt_category::get());
+            ELLE_WARN("%s: post read error: %s", *this, error);
             this->_service.post(std::bind(handler, error, read));
             return;
           }
           if (read > 0)
           {
+            ELLE_DEBUG("%s: post successful read of %s bytes", *this, read);
             this->_service.post(std::bind(handler, system::error_code(), read));
           }
           else
@@ -177,6 +186,7 @@ namespace boost
             system::error_code canceled(system::errc::operation_canceled,
                                         system::system_category());
             auto cancel = std::bind(handler, canceled, 0);
+            ELLE_DEBUG("%s: no data available", *this);
             this->_udt_service.register_read(this, action, cancel);
           }
         }

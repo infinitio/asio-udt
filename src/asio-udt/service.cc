@@ -4,6 +4,7 @@
 #include <asio-udt/service.hh>
 #include <asio-udt/socket.hh>
 
+#include <elle/log.hh>
 
 static boost::mutex _debug_mutex;
 
@@ -15,6 +16,7 @@ static boost::mutex _debug_mutex;
 //   }
 //   while (false)
 
+ELLE_LOG_COMPONENT("boost.asio.ip.udt.service");
 
 namespace boost
 {
@@ -66,57 +68,58 @@ namespace boost
             std::set<UDTSOCKET> readfds;
             std::set<UDTSOCKET> writefds;
             while (true)
+            {
+              ELLE_TRACE("%s: wait for socket event", *this);
               {
-                ASIO_UDT_DEBUG("epoll_wait");
+                boost::unique_lock<boost::mutex> lock(_lock);
+                for (auto r: _read_map)
+                  ELLE_DUMP("%s: monitor %s for read", *this, r.first);
+                for (auto w: _write_map)
+                  ELLE_DUMP("%s: monitor %s for write", *this, w.first);
+              }
+              if (UDT::epoll_wait(this->_epoll, &readfds, &writefds, -1) < 0)
+              {
+                if (_stop)
                 {
-                  boost::unique_lock<boost::mutex> lock(_lock);
-                  for (auto r: _read_map)
-                    ASIO_UDT_DEBUG ("  read: " << r.first);
-                  for (auto w: _write_map)
-                    ASIO_UDT_DEBUG ("  write: " << w.first);
+                  ELLE_TRACE("%s: stop service", *this);
+                  return;
                 }
-                if (UDT::epoll_wait(this->_epoll, &readfds, &writefds, -1) < 0)
+                if (UDT::getlasterror().getErrorCode() ==
+                    udt_category::EINVPARAM)
+                {
+                  ELLE_DEBUG("%s: no socket to wait upon, waiting", *this);
+                  boost::unique_lock<boost::mutex> lock(_lock);
+                  while (_read_map.empty() && _write_map.empty())
                   {
+                    _barrier.wait(lock);
                     if (_stop)
-                      {
-                        ASIO_UDT_DEBUG("stopping UDT Asio service");
-                        return;
-                      }
-                    if (UDT::getlasterror().getErrorCode() ==
-                        udt_category::EINVPARAM)
-                      {
-                        ASIO_UDT_DEBUG("no socket to wait upon, waiting");
-                        boost::unique_lock<boost::mutex> lock(_lock);
-                        while (_read_map.empty() && _write_map.empty())
-                          {
-                            _barrier.wait(lock);
-                            if (_stop)
-                              {
-                                ASIO_UDT_DEBUG("stopping UDT Asio service");
-                                return;
-                              }
-                          }
-                      }
-                    else
-                      throw_udt();
-                  }
-                else
-                  if (_stop)
                     {
-                      ASIO_UDT_DEBUG("stopping UDT Asio service");
+                      ELLE_TRACE("%s: stop service", *this);
                       return;
                     }
-                  else
-                    break;
+                  }
+                }
+                else
+                  throw_udt();
               }
-            ASIO_UDT_DEBUG("epoll woke: " << readfds.size() << " " << writefds.size());
+              else
+                if (_stop)
+                {
+                  ELLE_TRACE("%s: stop service", *this);
+                  return;
+                }
+                else
+                  break;
+            }
+            ELLE_DEBUG("%s: got %s read events and %s write events",
+                       *this, readfds.size(), writefds.size());
             boost::unique_lock<boost::mutex> lock(_lock);
             for (auto read: readfds)
             {
               auto it = _read_map.find(read);
               if (it != _read_map.end())
               {
-                ASIO_UDT_DEBUG("READ " << read);
+                ELLE_DEBUG("%s: execute read action for %s", *this, read);
                 // static int const flags = UDT_EPOLL_IN;
                 UDT::epoll_remove_usock(_epoll, read);
                 this->get_io_service().post(it->second.action);
@@ -130,7 +133,7 @@ namespace boost
               auto it = _write_map.find(write);
               if (it != _write_map.end())
               {
-                ASIO_UDT_DEBUG("WRITE " << write);
+                ELLE_DEBUG("%s: execute read action for %s", *this, write);
                 // static int const flags = UDT_EPOLL_OUT;
                 UDT::epoll_remove_usock(_epoll, write);
                 this->get_io_service().post(it->second.action);
@@ -156,7 +159,7 @@ namespace boost
                                std::function<void ()> const& cancel)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
-          ASIO_UDT_DEBUG("WAIT read " << sock->_udt_socket);
+          ELLE_TRACE_SCOPE("%s: register read action on %s", *this, *sock);
           static int const flags = UDT_EPOLL_IN | UDT_EPOLL_ERR;
           UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
           this->_read_map.insert(std::make_pair
@@ -170,7 +173,7 @@ namespace boost
         service::cancel_read(socket* sock)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
-          ASIO_UDT_DEBUG("CANCEL read " << sock->_udt_socket);
+          ELLE_TRACE_SCOPE("%s: cancel read action on %s", *this, *sock);
           UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
           auto work = this->_read_map.find(sock->_udt_socket);
           if (work != this->_read_map.end())
@@ -187,7 +190,7 @@ namespace boost
                                std::function<void ()> const& cancel)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
-          ASIO_UDT_DEBUG("WAIT write " << sock->_udt_socket);
+          ELLE_TRACE_SCOPE("%s: register write action on %s", *this, *sock);
           static int const flags = UDT_EPOLL_OUT | UDT_EPOLL_ERR;
           UDT::epoll_add_usock(_epoll, sock->_udt_socket, &flags);
           this->_write_map.insert(std::make_pair
@@ -201,7 +204,7 @@ namespace boost
         service::cancel_write(socket* sock)
         {
           boost::unique_lock<boost::mutex> lock(_lock);
-          ASIO_UDT_DEBUG("CANCEL write " << sock->_udt_socket);
+          ELLE_TRACE_SCOPE("%s: cancel write action on %s", *this, *sock);
           UDT::epoll_remove_usock(_epoll, sock->_udt_socket);
           auto work = this->_write_map.find(sock->_udt_socket);
           if (work != this->_write_map.end())
