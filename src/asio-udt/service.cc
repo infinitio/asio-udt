@@ -128,13 +128,9 @@ namespace boost
               if (it != _read_map.end())
               {
                 ELLE_DEBUG("%s: execute read action for %s", *this, read);
-                // static int const flags = UDT_EPOLL_IN;
-                UDT::epoll_remove_usock(_epoll, read);
                 this->get_io_service().post(it->second.action);
                 _read_map.erase(it);
               }
-              // else
-              //   ASIO_UDT_DEBUG("LOST READ " << read);
             }
             for (auto write: writefds)
             {
@@ -142,13 +138,9 @@ namespace boost
               if (it != _write_map.end())
               {
                 ELLE_DEBUG("%s: execute read action for %s", *this, write);
-                // static int const flags = UDT_EPOLL_OUT;
-                UDT::epoll_remove_usock(_epoll, write);
                 this->get_io_service().post(it->second.action);
                 _write_map.erase(it);
               }
-              // else
-              //   ASIO_UDT_DEBUG("LOST WRITE " << write);
             }
           }
         }
