@@ -263,6 +263,7 @@ namespace boost
         void
         socket::close()
         {
+          this->_udt_service.unregister_socket(this);
           if (UDT::close(this->_udt_socket) == UDT::ERROR)
             throw_udt();
           else

@@ -137,7 +137,7 @@ namespace boost
               auto it = _write_map.find(write);
               if (it != _write_map.end())
               {
-                ELLE_DEBUG("%s: execute read action for %s", *this, write);
+                ELLE_DEBUG("%s: execute write action for %s", *this, write);
                 this->get_io_service().post(it->second.action);
                 _write_map.erase(it);
               }
