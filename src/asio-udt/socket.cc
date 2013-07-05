@@ -196,6 +196,7 @@ namespace boost
                                  std::function<void (system::error_code const&,
                                                      std::size_t)> const& handler)
         {
+          //::usleep(50000);
           ELLE_TRACE_SCOPE("%s: write at most %s bytes",
                            *this, boost::asio::buffer_size(buffer));
           auto buf = buffer_cast<char const*>(buffer);

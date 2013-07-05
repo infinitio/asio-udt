@@ -170,14 +170,16 @@ namespace boost
             flags |= UDT_EPOLL_OUT;
             wait = true;
           }
-          UDT::epoll_remove_usock(_epoll, sock);
           if (wait)
           {
             ELLE_DEBUG("%s: reregister %s", *this, sock);
             UDT::epoll_add_usock(_epoll, sock, &flags);
           }
           else
+          {
             ELLE_DEBUG("%s: unregister %s", *this, sock);
+            UDT::epoll_remove_usock(_epoll, sock);
+          }
         }
 
         void
