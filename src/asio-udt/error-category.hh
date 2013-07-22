@@ -66,7 +66,7 @@ namespace boost
 
             virtual
             const char*
-            name() const;
+            name() const noexcept;
 
             virtual
             std::string

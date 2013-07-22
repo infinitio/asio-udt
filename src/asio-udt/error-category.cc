@@ -38,7 +38,7 @@ namespace boost
         }
 
         char const*
-        udt_category::name() const
+        udt_category::name() const noexcept
         {
           return "UDT";
         }
